@@ -34,3 +34,33 @@
      - name: Create internet gateway
        ec2__vpc_igw:
          vpc_id: "{{ vpc.vpc.id }}"
+         tags: 
+           Name: Module5 gateway
+           Module: 5
+         state: present
+        register: igw
+     - name: debug
+       debug: var=igw
+     - name: Create public route table
+       ec2_vpc_route_table:
+         vpc_id: "{{ vpc.vpc.id }}"
+         tags: 
+           Name: Module5
+         subnets:
+           - "{{ public_subnet.subnet.id }}"
+         routes: 
+           - dest: 0.0.0.0/0
+             gateway_id: "{{ igw.gate_id }}"
+     - name: Create security group
+       ec2_group: 
+         name: Module5-developer-sg
+         description: Developer security group
+         vps_id: "{{ vpc.vpc.id }}"
+         rules:
+           - proto: tcp
+             ports: 
+               - 22
+               - 80
+             cidr_ip: 0.0.0.0/0
+             rule_desc: allow all to ports 22 and 80
+          state: present  
