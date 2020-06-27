@@ -14,7 +14,7 @@
         instance_type: t3.nano
         image: "{{ ami_id }}"
         instance_tags: 
-          Name: Module5createEC2
+          Name: Module5createEC2ONE
           Module: 5
          wait: yes
          vpc_subnet_id: "{{ public _subnet.subnet.id }}"
@@ -23,3 +23,18 @@
            Name: Module5createEC2 
            Module: 5
 
+     - name: Make Module5 EC2 Instances
+       ec2:
+         key_name: m5ec2
+         group: Module5-developer-sg
+         instance_type: t3.nano
+         image: "{{ ami_id }}"
+         instance_tags:
+           Name: Module5createEC2TWO
+           Module: 5
+          wait: yes
+          vpc_subnet_id: "{{ public _subnet.subnet.id }}"
+          exact_count: 1
+          count_tag:
+            Name: Module5createEC2
+            Module: 5

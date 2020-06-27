@@ -71,4 +71,4 @@
                - 80
              cidr_ip: 0.0.0.0/0
              rule_desc: allow all to ports 22 and 80
-         state: present
+             state: present
