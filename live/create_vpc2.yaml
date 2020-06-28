@@ -31,9 +31,7 @@
            Name: Module5 privateOne
            Module: 5
          cidr: 10.10.1.0/24
-         state: present
-         register: subnet_privateOne 
-         az: us-east-1e
+         state: present 
     - name: Create private subnet second
       ec2_vpc_subnet:
          vpc_id: "{{ vpc.vpc.id }}"
@@ -42,7 +40,6 @@
            Module: 5
          cidr: 10.10.2.0/24
          state: present
-         register: subnet_privateTwo
          az: us-east-1a
     - name: Create internet gateway
       ec2_vpc_igw:
@@ -192,30 +189,15 @@
         name: ig-private-dbgrp 
         description: security group for db
         subnets:
-          - "{{ subnet_privateOne.subnet.id }}" 
-          - "{{ subnet_privateTwo.subnet.id }}"
+          - "" 
+          - ""
     - name: Create an ec2 launch template
       ec2_launch_template:
-         name: "java-image-gallery-lt"
-         latest_version: present 
+         name: "my_template"
+         image_id: "ami-04b762b4289fba92b"
+         key_name: my_ssh_key
          instance_type: t2.micro
-    - elb_application_lb:
-        name: myelb
-        security_groups:
-          - sg-12345678
-          - my-sec-group
-        subnets:
-          - subnet-012345678
-          - subnet-abcdef000
-        listeners:
-          - Protocol: 
-            Port: 80 # Required. The port on which the load balancer is listening.
-            # The security policy that defines which ciphers and protocols are supported. The default is the current predefined security policy.
-            SslPolicy: ELBSecurityPolicy-2015-05
-            Certificates: # The ARN of the certificate (only one certficate ARN should be provided)
-              - CertificateArn: arn:aws:iam::12345678987:server-certificate/test.domain.com
-            DefaultActions:
-              - Type: forward # Required.
-                TargetGroupName: # Required. The name of the target group
-        state: present
+         iam_instance_profile: myTestProfile
+    disable_api_termination: true
+
 
