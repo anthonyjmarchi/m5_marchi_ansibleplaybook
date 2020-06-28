@@ -32,8 +32,7 @@
            Module: 5
          cidr: 10.10.1.0/24
          state: present
-         register: subnet_privateOne 
-         az: us-east-1e
+      register: subnet_privateOne 
     - name: Create private subnet second
       ec2_vpc_subnet:
          vpc_id: "{{ vpc.vpc.id }}"
@@ -42,8 +41,7 @@
            Module: 5
          cidr: 10.10.2.0/24
          state: present
-         register: subnet_privateTwo
-         az: us-east-1a
+      register: subnet_privateTwo
     - name: Create internet gateway
       ec2_vpc_igw:
          vpc_id: "{{ vpc.vpc.id }}"
@@ -86,37 +84,37 @@
          state: present
     - name: "Create public acl"
       ec2_vpc_nacl:
-         vpc_id: " {{ vpc.vpc.id }} "
+         vpc_id: "{{ vpc.vpc.id }}"
          name: public-acl
-         region: us-east-1
-         subnets: "{{ public_subnet.subnet.id }}"
+         subnets: 
+             - "{{ public_subnet.subnet.id }}"
          tags:
            Name: Module5publicACL
          ingress:         
-             - [100, 'tcp', 'allow', '0.0.0.0/0', null, null, 22]
-             - [500, 'tcp', 'allow', '24.239.105.213/32', null, null, 5000]
-             - [600, 'tcp', 'allow', '24.196.25.139/32', null, null, 5000]
-             - [700, 'tcp', 'allow', '73.99.116.234/32', null, null, 5000]
-             - [800, 'tcp', 'allow', '98.204.70.130/32', null, null, 5000]
-             - [900, 'tcp', 'allow', '0.0.0.0/0', null, null, 1024, 65535]
-             - [300, 'tcp', 'allow', '0.0.0.0/0', null, null, 443]
-             - [400, 'tcp', 'allow', '0.0.0.0/0', null, null, 80]
+             - [100, 'tcp', 'allow', '0.0.0.0/0', null, null, 22, 22]
+             - [500, 'tcp', 'allow', '24.239.105.213/32', null, null, 5000, 5000]
+             - [600, 'tcp', 'allow', '24.196.25.139/32', null, null, 5000, 5000]
+             - [700, 'tcp', 'allow', '73.99.116.234/32', null, null, 5000, 5000]
+             - [800, 'tcp', 'allow', '98.204.70.130/32', null, null, 5000, 5000]
+             - [900, 'tcp', 'allow', '0.0.0.0/0', null, null, 1024, 65535, 65535]
+             - [300, 'tcp', 'allow', '0.0.0.0/0', null, null, 443, 443]
+             - [400, 'tcp', 'allow', '0.0.0.0/0', null, null, 80, 80]
          egress:
-             - [100, 'tcp', 'allow', '0.0.0.0/0', null, 80, 80] 
-             - [200, 'tcp', 'allow', '0.0.0.0/0', null, 443, 443]
-             - [900, 'tcp', 'allow', '0.0.0.0/0', null, 1024, 65535]
+             - [100, 'tcp', 'allow', '0.0.0.0/0', null, null, 80, 80] 
+             - [200, 'tcp', 'allow', '0.0.0.0/0', null, null, 443, 443]
+             - [900, 'tcp', 'allow', '0.0.0.0/0', null, null, 1024, 65535]
          state: 'present'
     - name: "Create private acl"
       ec2_vpc_nacl:
-         vpc_id: " {{ vpc.vpc.id }} "
+         vpc_id: "{{ vpc.vpc.id }}"
          name: private-acl
-         region: us-east-1
-         subnets: "{{ public_subnet.subnet.id }}"
+         subnets: 
+             - "{{ public_subnet.subnet.id }}"
          tags:
            Name: Module5privateACL
          ingress:
-             - [100, 'tcp', 'allow', '0.0.0.0/0', null, null, 5432]
-             - [500, 'tcp', 'allow', '0.0.0.0/0', null, null, 22]
+             - [100, 'tcp', 'allow', '0.0.0.0/0', null, null, 5432, 5432]
+             - [500, 'tcp', 'allow', '0.0.0.0/0', null, null, 22, 22]
          egress:
              - [900, 'tcp', 'allow', '0.0.0.0/0', null, null, 1024, 65535]
          state: 'present'
@@ -131,18 +129,6 @@
       ec2_group:
          name: Module5-postgres-sg
          description: postgres security group
-         vpc_id: "{{ vpc.vpc.id }}"
-         rules:
-           - proto: tcp
-             ports:
-               - 5432
-             cidr_ip: 0.0.0.0/0
-             rule_desc: allow all to ports 5432
-         state: present
-    - name: Create ig-postgres-tag security group
-      ec2_group:
-         name: Module5-postgres-tag-sg
-         description: postgres tag security group
          vpc_id: "{{ vpc.vpc.id }}"
          rules:
            - proto: tcp
@@ -174,17 +160,13 @@
            - proto: tcp
              ports: 80
              cidr_ip: 0.0.0.0/0
-           - proto: tcp 
-             ports: 80
-             cidr_ip: ::/0
            - proto: tcp
              ports: 22
              cidr_ip: 0.0.0.0/0
-           - proto: tcp
-             ports: 22
-             cidr_ip: ::/0
          rules_egress:
            - proto: tcp
+             from_port: 0
+             to_port: 65535
              cidr_ip: 0.0.0.0/0
          state: present
     - rds_subnet_group:
@@ -194,28 +176,52 @@
         subnets:
           - "{{ subnet_privateOne.subnet.id }}" 
           - "{{ subnet_privateTwo.subnet.id }}"
-    - name: Create an ec2 launch template
+    - name: Find ec2 launch template
       ec2_launch_template:
          name: "java-image-gallery-lt"
          latest_version: present 
          instance_type: t2.micro
-    - elb_application_lb:
-        name: myelb
-        security_groups:
-          - sg-12345678
-          - my-sec-group
+    - name: Create load balancer
+      elb_application_lb:
+        name: image-gallery-lb
         subnets:
-          - subnet-012345678
-          - subnet-abcdef000
+          - "{{ subnet_privateOne.subnet.id }}"
+          - "{{ subnet_privateTwo.subnet.id }}"
         listeners:
-          - Protocol: 
-            Port: 80 # Required. The port on which the load balancer is listening.
-            # The security policy that defines which ciphers and protocols are supported. The default is the current predefined security policy.
-            SslPolicy: ELBSecurityPolicy-2015-05
-            Certificates: # The ARN of the certificate (only one certficate ARN should be provided)
-              - CertificateArn: arn:aws:iam::12345678987:server-certificate/test.domain.com
+          - Protocol: tcp 
+            Port: 80 
             DefaultActions:
-              - Type: forward # Required.
-                TargetGroupName: # Required. The name of the target group
+             - Type: forward # Required.
+               TargetGroupName: # Required. The name of the target group
+          - Protocol: tcp
+            Port: 443
+            DefaultActions:
+             - Type: forward # Required.
+               TargetGroupName: # Required. The name of the target group
         state: present
+    - elb_target_group:
+        name: ig-targetgroup
+        protocol: tcp
+        port: 80
+        health_check_protocol: http
+        stickiness_enabled: no
+        stickiness_type: source_ip
+        vpc_id: " {{ vpc.vpc.id }} "
+        state: present 
+    - name: Create ASG
+      ec2_asg:
+         name: Module5-imageGallery-asg
+         launch_template:
+           launch_template_name: java-image-gallery-lt
+         desired_capacity: 1
+         min_size: 1
+         max_size: 4
+         target_group_arns: 
+           - " {{ ig_target_group.target_group_arn }} "
+         vpc_zone_identifier: " {{ public_subnet.subnet.id }} "
+         health_check_period: 300
+         tags: 
+           - Name: Module5-asg
+         wait_for_instances: yes
+         state: present
 
