@@ -15,8 +15,6 @@
           Module: 5
         state: present 
       register: vpc
-    - name: debug
-      debug: var=vpc
     - name: Create public subnet
       ec2_vpc_subnet:
          vpc_id: "{{ vpc.vpc.id }}"
@@ -185,25 +183,6 @@
          name: "java-image-gallery-lt"
          default_version: latest
          instance_type: t2.micro
-    - name: Create load balancer
-      elb_application_lb:
-        name: image-gallery-lb
-        subnets:
-          - "{{ subnet_privateOne.subnet.id }}"
-          - "{{ subnet_privateTwo.subnet.id }}"
-        listeners:
-          - Protocol: tcp 
-            Port: 80 
-            DefaultActions:
-             - Type: forward # Required.
-               TargetGroupName: # Required. The name of the target group
-          - Protocol: tcp
-            Port: 443
-            DefaultActions:
-             - Type: forward # Required.
-               TargetGroupName: 
-        state: present
-        security_groups: 'Module5-developer-sg'
     - elb_target_group:
         name: ig-targetgroup
         protocol: tcp
@@ -211,8 +190,37 @@
         health_check_protocol: http
         stickiness_enabled: no
         stickiness_type: source_ip
-        vpc_id: " {{ vpc.vpc.id }} "
-        state: present 
+        vpc_id: "{{ vpc.vpc.id }}"
+        state: present
+    - name: allocate a new elastic IP without associating it to anything
+      ec2_eip:
+        state: present
+        register: eipOne
+    - name: allocate a new elastic IP without associating it to anything
+      ec2_eip:
+        state: present
+        register: eipTwo
+    - name: Create load balancer
+      elb_application_lb:
+        name: image-gallery-lb
+        subnet_mappings:
+          - SubnetId: "{{ subnet_privateOne.subnet.id }}"
+            AllocationId: "{{eipOne.allocation_id}}"
+          - SubnetId: "{{ subnet_privateTwo.subnet.id }}"
+            AllocationId: "{{eipTwo.allocation_id}}"
+        listeners:
+          - Protocol: HTTP 
+            Port: 80 
+            DefaultActions:
+             - Type: forward # Required.
+               TargetGroupName: 'ig-targetgroup'
+          - Protocol: HTTP
+            Port: 443
+            DefaultActions:
+             - Type: forward # Required.
+               TargetGroupName: 'ig-targetgroup'
+        state: present
+        security_groups: 'Module5-developer-sg'
     - name: Create ASG
       ec2_asg:
          name: Module5-imageGallery-asg
