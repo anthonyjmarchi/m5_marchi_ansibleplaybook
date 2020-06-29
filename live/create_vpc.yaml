@@ -1,6 +1,8 @@
 ---
 - hosts: localhost 
   gather_facts: no
+  vars: 
+      ansible_python_interpreter: /usr/bin/python3
   module_defaults:
     group/aws:
       region: "us-east-2"
@@ -32,15 +34,17 @@
            Module: 5
          cidr: 10.10.1.0/24
          state: present
+         az: us-east-2a
       register: subnet_privateOne 
     - name: Create private subnet second
       ec2_vpc_subnet:
          vpc_id: "{{ vpc.vpc.id }}"
          tags:
-           Name: Module5 priavteTwo
+           Name: Module5 privateTwo
            Module: 5
          cidr: 10.10.2.0/24
-         state: present
+         state: present    
+         az: us-east-2b
       register: subnet_privateTwo
     - name: Create internet gateway
       ec2_vpc_igw:
@@ -179,7 +183,7 @@
     - name: Find ec2 launch template
       ec2_launch_template:
          name: "java-image-gallery-lt"
-         latest_version: present 
+         default_version: latest
          instance_type: t2.micro
     - name: Create load balancer
       elb_application_lb:
@@ -197,8 +201,9 @@
             Port: 443
             DefaultActions:
              - Type: forward # Required.
-               TargetGroupName: # Required. The name of the target group
+               TargetGroupName: 
         state: present
+        security_groups: 'Module5-developer-sg'
     - elb_target_group:
         name: ig-targetgroup
         protocol: tcp
@@ -224,4 +229,21 @@
            - Name: Module5-asg
          wait_for_instances: yes
          state: present
-
+    - name: Create RDS
+      rds:
+        command: create
+        instance_name: module-5-image-gallery-database
+        db-gine: postgres
+        region: us-east-2
+        size: "10"
+        instance_type: db.t2.micro
+        multi_zone: no
+        subnet: ""
+        vpc_security_groups: " {{ sg_postgres.group_id }}"
+        username: postgres
+        password: anthony
+        db_name: image_gallery
+        tags: 
+          Name: mod5-ig-db
+          Module: 5
+        register: ig_db 
